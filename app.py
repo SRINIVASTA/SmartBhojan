@@ -13,14 +13,11 @@ CSV_PATH = 'enriched_food_metadata_english.csv'
 IMAGE_FOLDER = 'images'
 PAGE_WIDTH, PAGE_HEIGHT = letter
 
-st.set_page_config(page_title="Indian Food Health Suite", layout="wide")
+st.set_page_config(page_title="Smart Bhojan 🍲", layout="wide")
 
 # --- CUSTOM CSS FOR BORDER ---
 st.markdown("""
     <style>
-    .reportview-container {
-        background: #f0f2f6;
-    }
     .main-border {
         border: 5px solid #2E7D32;
         padding: 30px;
@@ -36,7 +33,7 @@ st.markdown("""
 def load_data():
     if not os.path.exists(CSV_PATH): return pd.DataFrame()
     df = pd.read_csv(CSV_PATH)
-    df.fillna("N/A", inplace=True) # Ensure recipe text isn't empty
+    df.fillna("N/A", inplace=True)
     return df
 
 df = load_data()
@@ -60,23 +57,25 @@ def get_image_path(food_name):
         if os.path.exists(path): return path
     return None
 
-# --- PDF ENGINE WITH BORDER & RECIPE ---
+# --- PDF ENGINE WITH BORDER & SMART BHOJAN HEADING ---
 def draw_border(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(colors.darkgreen)
     canvas.setLineWidth(3)
     canvas.rect(25, 25, PAGE_WIDTH - 50, PAGE_HEIGHT - 50)
+    # PDF Heading with plain text for reliability
+    canvas.setFont('Helvetica-Bold', 14)
+    canvas.drawCentredString(PAGE_WIDTH/2, PAGE_HEIGHT - 45, "🍲 Smart Bhojan - Nutrition Report 🍲")
     canvas.restoreState()
 
 def create_recipe_pdf(food_name):
     row = df[df['food_name'] == food_name].iloc[0]
     score, label, color, tip = get_health_analysis(row)
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=60)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=70)
     styles = getSampleStyleSheet()
     elements = []
     
-    # Image
     img_path = get_image_path(food_name)
     if img_path:
         elements.append(RLImage(img_path, width=200, height=150))
@@ -85,14 +84,12 @@ def create_recipe_pdf(food_name):
     elements.append(Paragraph(f"Rating: {score}/10 ({label})", styles['Normal']))
     elements.append(Spacer(1, 15))
     
-    # Nutrition Table
     data = [['Nutrient', 'Value'], ['Calories', f"{row['Calories (kcal)']} kcal"], ['Protein', f"{row['Protein (g)']}g"], ['Carbs', f"{row['Carbs (g)']}g"], ['Fat', f"{row['Fat (g)']}g"]]
-    t = Table(data, colWidths=[120, 120])
+    t = Table(data, colWidths=[100, 100])
     t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.darkgreen), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.grey)]))
     elements.append(t)
     elements.append(Spacer(1, 20))
     
-    # 📝 RECIPE SECTION IN PDF
     elements.append(Paragraph("<b>RECIPE INSTRUCTIONS</b>", styles['Heading2']))
     recipe_text = str(row.get('Instructions', 'Recipe instructions not available.'))
     elements.append(Paragraph(recipe_text, styles['Normal']))
@@ -101,7 +98,6 @@ def create_recipe_pdf(food_name):
     return buffer.getvalue()
 
 # --- MAIN UI ---
-# Sidebar is outside the border
 with st.sidebar:
     st.header("⚙️ Settings")
     search = st.text_input("🔍 Search Food")
@@ -112,9 +108,12 @@ with st.sidebar:
 # Main Dashboard wrapped in border
 st.markdown('<div class="main-border">', unsafe_allow_html=True)
 
+# Smart Bhojan Heading with Emoji
+st.markdown("<h1 style='text-align: center; color: #2E7D32;'>🍲 Smart Bhojan 🍲</h1>", unsafe_allow_html=True)
+
 if food_name:
     item = df[df['food_name'] == food_name].iloc[0]
-    st.header(f"🍲 {food_name}")
+    st.header(f" {food_name}")
     
     col1, col2 = st.columns([1, 1.2])
     
@@ -130,12 +129,11 @@ if food_name:
         st.pyplot(fig)
         st.info(f"💡 {tip}")
         
-    # 📝 RECIPE SECTION ON DESKTOP
     st.markdown("---")
     st.subheader("📖 Recipe & Instructions")
     st.write(item.get('Instructions', "Recipe not found in dataset."))
     
-    st.download_button("📥 Download Full Report (PDF)", create_recipe_pdf(food_name), f"{food_name}.pdf", "application/pdf")
+    st.download_button("📥 Download Smart Bhojan Report (PDF)", create_recipe_pdf(food_name), f"SmartBhojan_{food_name}.pdf", "application/pdf")
 
 else:
     st.write("Please select a dish from the sidebar to begin.")
