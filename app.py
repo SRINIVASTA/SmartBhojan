@@ -15,14 +15,18 @@ PAGE_WIDTH, PAGE_HEIGHT = letter
 
 st.set_page_config(page_title="Indian Food Health Suite", layout="wide")
 
-# --- DESKTOP BORDER (CSS) ---
+# --- CUSTOM CSS FOR BORDER ---
 st.markdown("""
     <style>
-    .main {
-        border: 10px solid #2E7D32;
-        padding: 20px;
+    .reportview-container {
+        background: #f0f2f6;
+    }
+    .main-border {
+        border: 5px solid #2E7D32;
+        padding: 30px;
         border-radius: 15px;
-        margin: 10px;
+        background-color: white;
+        box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -32,7 +36,7 @@ st.markdown("""
 def load_data():
     if not os.path.exists(CSV_PATH): return pd.DataFrame()
     df = pd.read_csv(CSV_PATH)
-    df.fillna(0, inplace=True)
+    df.fillna("N/A", inplace=True) # Ensure recipe text isn't empty
     return df
 
 df = load_data()
@@ -56,75 +60,84 @@ def get_image_path(food_name):
         if os.path.exists(path): return path
     return None
 
-# --- PDF ENGINE WITH BORDER ---
+# --- PDF ENGINE WITH BORDER & RECIPE ---
 def draw_border(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(colors.darkgreen)
-    canvas.setLineWidth(5)
-    # Draw rectangle: (x, y, width, height)
-    canvas.rect(20, 20, PAGE_WIDTH - 40, PAGE_HEIGHT - 40)
-    canvas.setFont('Helvetica-Oblique', 8)
-    canvas.drawCentredString(PAGE_WIDTH/2, 30, "✨ Indian Food Project - Nutrition Report ✨")
+    canvas.setLineWidth(3)
+    canvas.rect(25, 25, PAGE_WIDTH - 50, PAGE_HEIGHT - 50)
     canvas.restoreState()
 
 def create_recipe_pdf(food_name):
     row = df[df['food_name'] == food_name].iloc[0]
     score, label, color, tip = get_health_analysis(row)
     buffer = BytesIO()
-    # Increased margins to fit inside the border
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=50, bottomMargin=50, leftMargin=50, rightMargin=50)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=60)
     styles = getSampleStyleSheet()
     elements = []
     
+    # Image
     img_path = get_image_path(food_name)
     if img_path:
-        elements.append(RLImage(img_path, width=250, height=180))
+        elements.append(RLImage(img_path, width=200, height=150))
     
-    elements.append(Paragraph(f"<font color='#2E7D32' size=24><b>{food_name.upper()}</b></font>", styles['Title']))
-    elements.append(Paragraph(f"⭐ Health Rating: {score}/10 ({label})", styles['Normal']))
+    elements.append(Paragraph(f"<b>{food_name.upper()}</b>", styles['Title']))
+    elements.append(Paragraph(f"Rating: {score}/10 ({label})", styles['Normal']))
+    elements.append(Spacer(1, 15))
     
+    # Nutrition Table
     data = [['Nutrient', 'Value'], ['Calories', f"{row['Calories (kcal)']} kcal"], ['Protein', f"{row['Protein (g)']}g"], ['Carbs', f"{row['Carbs (g)']}g"], ['Fat', f"{row['Fat (g)']}g"]]
-    table = Table(data, colWidths=[150, 150])
-    table.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.darkgreen), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.grey)]))
-    elements.append(Spacer(1, 20)); elements.append(table); elements.append(Spacer(1, 20))
+    t = Table(data, colWidths=[120, 120])
+    t.setStyle(TableStyle([('BACKGROUND', (0,0), (-1,0), colors.darkgreen), ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke), ('GRID', (0,0), (-1,-1), 0.5, colors.grey)]))
+    elements.append(t)
+    elements.append(Spacer(1, 20))
     
-    elements.append(Paragraph("<b>Recipe Tips & Health Info:</b>", styles['Heading3']))
-    elements.append(Paragraph(tip, styles['Normal']))
+    # 📝 RECIPE SECTION IN PDF
+    elements.append(Paragraph("<b>RECIPE INSTRUCTIONS</b>", styles['Heading2']))
+    recipe_text = str(row.get('Instructions', 'Recipe instructions not available.'))
+    elements.append(Paragraph(recipe_text, styles['Normal']))
     
-    # build PDF using the draw_border function on every page
     doc.build(elements, onFirstPage=draw_border, onLaterPages=draw_border)
     return buffer.getvalue()
 
 # --- MAIN UI ---
-st.markdown('<div class="main">', unsafe_allow_html=True) # Start Border Div
-
-st.markdown("<h1 style='text-align: center; color: #2E7D32;'>🍲 Indian Food Smart Health Suite</h1>", unsafe_allow_html=True)
-
+# Sidebar is outside the border
 with st.sidebar:
-    st.header("Settings")
-    search_bar = st.text_input("🔍 Search food...")
-    filtered_names = sorted(df[df['food_name'].str.contains(search_bar, case=False)]['food_name'].unique()) if not df.empty else []
-    food_name = st.selectbox("🍱 Select Dish:", filtered_names) if filtered_names else None
-    calorie_goal = st.slider("🎯 Target kcal:", 100, 2000, 500)
+    st.header("⚙️ Settings")
+    search = st.text_input("🔍 Search Food")
+    filtered = sorted(df[df['food_name'].str.contains(search, case=False)]['food_name'].unique()) if not df.empty else []
+    food_name = st.selectbox("🍱 Select Dish", filtered)
+    goal = st.slider("🎯 kcal Goal", 100, 1500, 500)
+
+# Main Dashboard wrapped in border
+st.markdown('<div class="main-border">', unsafe_allow_html=True)
 
 if food_name:
     item = df[df['food_name'] == food_name].iloc[0]
+    st.header(f"🍲 {food_name}")
+    
     col1, col2 = st.columns([1, 1.2])
     
     with col1:
         img_path = get_image_path(food_name)
         if img_path: st.image(img_path, use_container_width=True)
-        st.info(f"⚖️ Portion Guide: Max **{round((calorie_goal / float(item['Calories (kcal)'])) * 100)}g** for {calorie_goal} kcal.")
+        score, label, color, tip = get_health_analysis(item)
+        st.metric("Health Rating", f"{score}/10", label)
 
     with col2:
-        score, label, color, tip = get_health_analysis(item)
-        st.metric("Health Score", f"{score}/10", label)
-        
         fig, ax = plt.subplots(figsize=(6, 3))
         ax.barh(['Protein', 'Carbs', 'Fat'], [float(item['Protein (g)']), float(item['Carbs (g)']), float(item['Fat (g)'])], color=['#2E7D32', '#FBC02D', '#D84315'])
         st.pyplot(fig)
+        st.info(f"💡 {tip}")
         
-        if st.download_button("📄 Download PDF Report", create_recipe_pdf(food_name), f"{food_name}_report.pdf", "application/pdf"):
-            st.balloons()
+    # 📝 RECIPE SECTION ON DESKTOP
+    st.markdown("---")
+    st.subheader("📖 Recipe & Instructions")
+    st.write(item.get('Instructions', "Recipe not found in dataset."))
+    
+    st.download_button("📥 Download Full Report (PDF)", create_recipe_pdf(food_name), f"{food_name}.pdf", "application/pdf")
 
-st.markdown('</div>', unsafe_allow_html=True) # End Border Div
+else:
+    st.write("Please select a dish from the sidebar to begin.")
+
+st.markdown('</div>', unsafe_allow_html=True)
