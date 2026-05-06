@@ -1,8 +1,10 @@
 # 🍲 Smart Bhojan: Personalized Nutrition & Recipe Dashboard
 
-### Created by Srinivasta 🥗 🥘 🍱 🥞 🥙
 
 **Smart Bhojan** is a Streamlit-based web application designed to help users understand the nutritional profile of Indian dishes. It calculates a custom health score, visualizes macronutrients, and provides downloadable PDF recipe reports.
+
+## 🔗 Live Demo
+Check out the live app here: [**Smart Bhojan Web App**](https://smartbhojan-9hebtsjz3wun3adggzry6s.streamlit.app/)
 
 ## 🚀 Features
 - **Health Scoring Engine:** Uses a custom algorithm to rate food from 0-10 (Super Food to Indulgent).
@@ -43,7 +45,7 @@
    - Ensure your `enriched_food_metadata_english.csv` includes columns: `food_name`, `Protein (g)`, `Carbs (g)`, `Fat (g)`, `Calories (kcal)`, and `Instructions`.
    - Place images in the `images/` folder with names matching the `food_name` (e.g., `samosa.jpg`).
 
-4. **Run the App:**
+4. **Run the App Locally:**
    ```bash
    streamlit run app.py
    ```
@@ -52,3 +54,5 @@
 The health score is calculated based on a weighted formula:
 `Score = 6.0 + [(Protein * 2.5) - (Fat * 1.5) - (Calories / 100)] / 5`
 This rewards high protein content while penalizing excessive fats and empty calories.
+
+### Created by Srinivasta 🥗 🥘 🍱 🥞 🥙
