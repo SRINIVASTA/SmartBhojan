@@ -15,31 +15,39 @@ PAGE_WIDTH, PAGE_HEIGHT = letter
 
 st.set_page_config(page_title="Smart Bhojan 🍲", layout="wide")
 
-# --- CUSTOM CSS FOR FULL DESKTOP BORDER ---
+# --- CUSTOM CSS FOR FULL WRAPPING BORDER ---
+# We apply the border directly to Streamlit's main block container
 st.markdown("""
     <style>
-    /* Main container styling */
-    .main-border {
-        border: 6px solid #2E7D32;
-        padding: 40px;
-        border-radius: 25px;
-        background-color: #ffffff;
-        box-shadow: 10px 10px 30px rgba(0,0,0,0.1);
-        min-height: 85vh;
-        margin: 10px;
+    /* The main content area where everything lives */
+    .block-container {
+        border: 8px solid #2E7D32;
+        border-radius: 30px;
+        padding: 50px !important;
+        margin-top: 25px;
+        margin-bottom: 25px;
+        background-color: white;
+        box-shadow: 15px 15px 35px rgba(0,0,0,0.1);
     }
-    /* Title styling */
+    
+    /* Smart Bhojan Heading Styling */
     .smart-title {
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-        font-weight: 800;
         text-align: center;
         color: #2E7D32;
-        margin-bottom: 20px;
+        font-family: 'Arial Black', Gadget, sans-serif;
+        font-size: 50px;
+        margin-bottom: 10px;
     }
-    /* Sidebar styling */
+    
+    /* Sidebar Styling (Stays outside the frame) */
     [data-testid="stSidebar"] {
-        background-color: #f8f9fa;
-        border-right: 2px solid #e0e0e0;
+        background-color: #f1f3f4;
+        border-right: 1px solid #d1d3d4;
+    }
+
+    /* Metric Styling */
+    [data-testid="stMetricValue"] {
+        color: #2E7D32;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -50,10 +58,10 @@ def load_data():
     if not os.path.exists(CSV_PATH):
         return pd.DataFrame()
     df = pd.read_csv(CSV_PATH)
-    # Ensure instructions column exists and is not NaN
+    # Ensure instructions column is ready
     if 'Instructions' not in df.columns:
-        df['Instructions'] = "Recipe instructions coming soon!"
-    df.fillna({"Instructions": "No instructions available.", "Protein (g)": 0, "Carbs (g)": 0, "Fat (g)": 0, "Calories (kcal)": 0}, inplace=True)
+        df['Instructions'] = "Recipe instructions not available for this item."
+    df.fillna({"Instructions": "Instructions not found.", "Protein (g)": 0, "Carbs (g)": 0, "Fat (g)": 0, "Calories (kcal)": 0}, inplace=True)
     return df
 
 df = load_data()
@@ -65,14 +73,13 @@ def get_health_analysis(row):
         raw_score = (p * 2.5) - (f * 1.5) - (cal / 100)
         score = round(max(0, min(10, 6.0 + (raw_score / 5))), 1)
         
-        if score >= 8.0: return score, "SUPER FOOD", "#1B5E20", "Excellent choice! Packed with nutrients."
-        elif score >= 6.0: return score, "HEALTHY", "#2E7D32", "Great balance for a daily meal."
-        elif score >= 4.0: return score, "BALANCED", "#FBC02D", "Watch portion sizes to maintain goals."
-        else: return score, "INDULGENT", "#D84315", "Pro-Tip: Try air-frying or using minimal ghee."
+        if score >= 8.0: return score, "SUPER FOOD", "#1B5E20", "Excellent choice! Nutrient-dense."
+        elif score >= 6.0: return score, "HEALTHY", "#2E7D32", "Great balanced meal."
+        elif score >= 4.0: return score, "BALANCED", "#FBC02D", "Watch portions to maintain goals."
+        else: return score, "INDULGENT", "#D84315", "Pro-Tip: Swap oil for minimal ghee or air-fry."
     except: return 5.0, "UNKNOWN", "#9E9E9E", "Data unavailable."
 
 def get_image_path(food_name):
-    # Matches the 'food_name.jpg' or 'food_name.png' inside images folder
     clean_name = food_name.replace(' ', '_')
     for ext in ['.jpg', '.jpeg', '.png', '.webp']:
         path = os.path.join(IMAGE_FOLDER, f"{clean_name}{ext}")
@@ -80,43 +87,34 @@ def get_image_path(food_name):
             return path
     return None
 
-# --- PDF ENGINE ---
+# --- PDF ENGINE WITH BORDER & SMART BHOJAN HEADING ---
 def draw_pdf_border(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(colors.darkgreen)
     canvas.setLineWidth(4)
-    # Draw the frame
     canvas.rect(30, 30, PAGE_WIDTH - 60, PAGE_HEIGHT - 60)
-    # Footer
-    canvas.setFont('Helvetica-Bold', 12)
-    canvas.drawCentredString(PAGE_WIDTH/2, 45, "🍲 Smart Bhojan - Your Digital Nutrition Guide 🍲")
+    canvas.setFont('Helvetica-Bold', 14)
+    canvas.drawCentredString(PAGE_WIDTH/2, PAGE_HEIGHT - 45, "🍲 Smart Bhojan - Nutrition Report 🍲")
     canvas.restoreState()
 
 def create_recipe_pdf(food_name):
     row = df[df['food_name'] == food_name].iloc[0]
     score, label, color, tip = get_health_analysis(row)
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=60, bottomMargin=60)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=70, bottomMargin=70)
     styles = getSampleStyleSheet()
     elements = []
     
-    # 1. Branding Header
-    elements.append(Paragraph("<font size=18 color='#2E7D32'><b>SMART BHOJAN REPORT</b></font>", styles['Title']))
-    elements.append(Spacer(1, 10))
-    
-    # 2. Image
     img_path = get_image_path(food_name)
     if img_path:
         elements.append(RLImage(img_path, width=220, height=160))
-        elements.append(Spacer(1, 12))
+        elements.append(Spacer(1, 15))
     
-    # 3. Nutrition Title
     display_name = food_name.replace('_', ' ').title()
-    elements.append(Paragraph(f"<b>Dish: {display_name}</b>", styles['Heading2']))
-    elements.append(Paragraph(f"Health Score: {score}/10 ({label})", styles['Normal']))
-    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"<b>DISH: {display_name}</b>", styles['Title']))
+    elements.append(Paragraph(f"Health Rating: {score}/10 ({label})", styles['Normal']))
+    elements.append(Spacer(1, 15))
     
-    # 4. Table
     data = [['Nutrient', 'Per 100g'], 
             ['Calories', f"{row['Calories (kcal)']} kcal"], 
             ['Protein', f"{row['Protein (g)']}g"], 
@@ -128,80 +126,61 @@ def create_recipe_pdf(food_name):
         ('BACKGROUND', (0,0), (-1,0), colors.darkgreen),
         ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
         ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold')
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey)
     ]))
     elements.append(table)
-    elements.append(Spacer(1, 20))
+    elements.append(Spacer(1, 25))
     
-    # 5. Recipe Instructions
-    elements.append(Paragraph("<b>📖 RECIPE INSTRUCTIONS</b>", styles['Heading3']))
-    recipe_text = str(row['Instructions'])
-    elements.append(Paragraph(recipe_text, styles['Normal']))
+    elements.append(Paragraph("<b>📖 RECIPE INSTRUCTIONS</b>", styles['Heading2']))
+    elements.append(Paragraph(str(row['Instructions']), styles['Normal']))
     
     doc.build(elements, onFirstPage=draw_pdf_border, onLaterPages=draw_pdf_border)
     return buffer.getvalue()
 
-# --- SIDEBAR (Outside the border) ---
+# --- SIDEBAR SETTINGS (Outside the border) ---
 with st.sidebar:
-    st.markdown("## ⚙️ Settings")
-    search_query = st.text_input("🔍 Search Food", placeholder="e.g. Paneer")
+    st.markdown("## ⚙️ App Settings")
+    search_q = st.text_input("🔍 Search Food", placeholder="e.g. Aloo")
     
-    # Filter dropdown based on search
-    if search_query:
-        options = sorted(df[df['food_name'].str.contains(search_query, case=False)]['food_name'].unique())
-    else:
-        options = sorted(df['food_name'].unique())
-        
-    food_choice = st.selectbox("🍱 Select your Dish", options if options else ["No results"])
-    kcal_slider = st.slider("🎯 Target kcal Goal", 100, 1500, 500, step=50)
+    options = sorted(df[df['food_name'].str.contains(search_q, case=False)]['food_name'].unique()) if search_q else sorted(df['food_name'].unique())
+    
+    food_choice = st.selectbox("🍱 Select Dish", options if options else ["No results found"])
+    kcal_goal = st.slider("🎯 Calories per Meal Goal", 100, 1500, 500, step=50)
 
-# --- MAIN DASHBOARD (Inside the border) ---
-st.markdown('<div class="main-border">', unsafe_allow_html=True)
+# --- MAIN DASHBOARD (Inside the Border) ---
 
 # 1. Main Heading
 st.markdown("<h1 class='smart-title'>🍲 Smart Bhojan 🍲</h1>", unsafe_allow_html=True)
 
-if food_choice and food_choice != "No results":
+if food_choice and food_choice != "No results found":
     item = df[df['food_name'] == food_choice].iloc[0]
     score, label, color, tip = get_health_analysis(item)
     
-    # Clean up name for display
-    clean_display_name = food_choice.replace('_', ' ').title()
-    st.header(clean_display_name)
+    # Title display
+    st.header(food_choice.replace('_', ' ').title())
     
-    col1, col2 = st.columns([1, 1.3])
+    col1, col2 = st.columns([1, 1.2])
     
     with col1:
-        # Display Image
         img_path = get_image_path(food_choice)
         if img_path:
-            st.image(img_path, use_container_width=True, caption=f"Fresh {clean_display_name}")
+            st.image(img_path, use_container_width=True)
         else:
-            st.warning("📷 Image not found in images/ folder.")
-            
-        # Portion Guide
-        cal_100 = float(item['Calories (kcal)'])
-        if cal_100 > 0:
-            allowed_grams = round((kcal_slider / cal_100) * 100)
-            st.success(f"⚖️ **Portion Guide:** Stay under **{allowed_grams}g** to hit your **{kcal_slider} kcal** goal.")
+            st.warning("📷 Image not found in /images folder.")
             
         st.metric("Health Score", f"{score}/10", label)
 
     with col2:
-        # Nutrition Bar Chart
-        st.subheader("Nutrient Distribution (per 100g)")
+        st.subheader("Nutrition Profile (per 100g)")
         fig, ax = plt.subplots(figsize=(7, 3.5))
-        nutrients = ['Protein', 'Carbs', 'Fat']
-        values = [float(item['Protein (g)']), float(item['Carbs (g)']), float(item['Fat (g)'])]
-        
-        ax.barh(nutrients, values, color=['#2E7D32', '#FBC02D', '#D84315'])
-        ax.set_xlabel('Grams (g)')
+        nut_labels = ['Protein', 'Carbs', 'Fat']
+        nut_values = [float(item['Protein (g)']), float(item['Carbs (g)']), float(item['Fat (g)'])]
+        ax.barh(nut_labels, nut_values, color=['#2E7D32', '#FBC02D', '#D84315'])
         st.pyplot(fig)
         
-        st.info(f"💡 **Health Tip:** {tip}")
+        st.info(f"💡 **Tip:** {tip}")
         
-        # Download PDF Button
+        # PDF Button
         pdf_data = create_recipe_pdf(food_choice)
         st.download_button(
             label="📥 Download Smart Bhojan Report (PDF)",
@@ -211,12 +190,10 @@ if food_choice and food_choice != "No results":
             use_container_width=True
         )
 
-    # 2. Recipe & Instructions Section
+    # 2. Recipe & Instructions (Stays inside the frame automatically)
     st.markdown("---")
     st.subheader("📖 Recipe & Instructions")
     st.write(item['Instructions'])
 
 else:
-    st.info("👈 Use the sidebar to search and select a delicious Indian dish!")
-
-st.markdown('</div>', unsafe_allow_html=True)
+    st.info("👈 Use the sidebar search to pick a dish!")
