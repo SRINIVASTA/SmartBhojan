@@ -3,6 +3,13 @@
 
 **Smart Bhojan** is a Streamlit-based web application designed to help users understand the nutritional profile of Indian dishes. It calculates a custom health score, visualizes macronutrients, and provides downloadable PDF recipe reports.
 
+## 📖 How to Use
+1. **Search:** Use the sidebar to search for your favorite Indian dish.
+2. **Analyze:** Check the Health Score and the macronutrient breakdown chart.
+3. **Customize:** Adjust the "Target kcal" slider to see how the meal fits your goals.
+4. **Download:** Click the "Download PDF Report" button to save the recipe and nutrition facts offline.
+
+
 ## 🔗 Live Demo
 Check out the live app here: [**Smart Bhojan Web App**](https://smartbhojan-9hebtsjz3wun3adggzry6s.streamlit.app/)
 
