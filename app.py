@@ -15,8 +15,6 @@ st.set_page_config(page_title="Smart Bhojan 🍲", layout="wide")
 st.markdown("""
     <style>
     /* 1. Hide default Streamlit headers to remove empty space */
-    header {visibility: hidden;}
-    [data-testid="stHeader"] {display: none;}
     
     /* 2. Apply the Green Frame to the actual page container */
     .main .block-container {
